@@ -1,0 +1,19 @@
+message analytics_event_v1 {
+  optional binary message_id (STRING);
+  optional binary anonymous_id (STRING);
+  optional binary user_id (STRING);
+  optional binary type (STRING);
+  optional binary event (STRING);
+  optional binary channel (STRING);
+  optional binary schema_version (STRING);
+  optional binary original_timestamp (STRING);
+  optional binary sent_at (STRING);
+  optional int64 received_at (TIMESTAMP(MICROS,true));
+  optional int64 timestamp (TIMESTAMP(MICROS,true));
+  optional binary context (STRING);
+  optional binary properties (STRING);
+  optional binary traits (STRING);
+  optional binary integrations (STRING);
+  optional binary group_id (STRING);
+  optional binary previous_id (STRING);
+}

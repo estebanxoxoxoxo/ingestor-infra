@@ -1,0 +1,18 @@
+# Caddy — el frente del ingestor.
+#
+# Hace dos cosas: termina TLS (certificado automático de Let's Encrypt, que se
+# renueva solo) y pasa el tráfico a Vector, que escucha sólo en local.
+#
+# NO valida el writeKey: figuraba como intención en los documentos viejos del
+# pipeline, pero nunca se implementó — hoy el endpoint acepta cualquier POST
+# bien formado. Si se agrega, es un cambio de comportamiento, no de migración.
+#
+# El nombre del sitio es lo único que hay que tocar acá. Requisito para que
+# funcione: que su registro A ya apunte a la IP de esta máquina — Caddy pide
+# el certificado apenas arranca y Let's Encrypt verifica resolviendo el
+# nombre. Se puede sobreescribir sin editar el archivo con la variable
+# SITE_ADDRESS del servicio.
+
+{$SITE_ADDRESS:actasitalianasexpress.com} {
+	reverse_proxy 127.0.0.1:8080
+}
