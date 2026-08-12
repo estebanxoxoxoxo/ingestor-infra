@@ -1,0 +1,30 @@
+# Unidad de systemd del ingestor. El paquete no trae una: ésta es la nuestra.
+#
+# Corre como usuario propio sin shell, con el sistema de archivos de sólo
+# lectura salvo su directorio de estado (los buffers sqlite). StateDirectory
+# crea /var/lib/redpanda-connect con el dueño correcto en cada arranque.
+
+[Unit]
+Description=Redpanda Connect - ingestor del pipeline (raw + bronze al lake)
+Documentation=https://docs.redpanda.com/redpanda-connect/about/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=redpanda-connect
+Group=redpanda-connect
+ExecStart=/usr/bin/redpanda-connect run /etc/redpanda-connect/connect.yaml
+Restart=always
+RestartSec=2
+
+# El estado (buffer sqlite) es lo ÚNICO escribible.
+StateDirectory=redpanda-connect
+ProtectSystem=strict
+ReadWritePaths=/var/lib/redpanda-connect
+ProtectHome=true
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -98,6 +98,14 @@ DEPLOYER="$(gcloud config get-value account 2>/dev/null)"
 gcloud iam service-accounts add-iam-policy-binding "$SA_EMAIL" \
   --member="user:${DEPLOYER}" --role="roles/iam.serviceAccountUser" >/dev/null
 
+# El disparador empuja los mensajes de Pub/Sub con ESTA misma identidad, y
+# para eso tiene que poder INVOCAR el servicio. Sin este rol, la función
+# queda desplegada pero cada entrega muere con 403 "run.routes.invoke" (se
+# ve en los logs de la función; Pub/Sub reintenta hasta que se otorga).
+gcloud projects add-iam-policy-binding "$PROJECT" \
+  --member="serviceAccount:${SA_EMAIL}" \
+  --role="roles/run.invoker" --condition=None >/dev/null
+
 # ── 2. El tópico ─────────────────────────────────────────────────────
 # El agente de servicio de GCS es una cuenta que administra Google; sin el
 # permiso de publicar, las notificaciones fallan EN SILENCIO.

@@ -1,0 +1,186 @@
+# Redpanda Connect — el ingestor del pipeline.
+#
+# Reemplaza a Vector. Motivo verificado (2026-08-12): Vector sólo sabe
+# escribir parquet por su sink de S3, y la API compatible de GCS rechaza la
+# firma de los SDK modernos de AWS (checksum CRC32 que Google no implementa).
+# Redpanda Connect escribe parquet con salida NATIVA de GCS: la VM se
+# autentica con su service account y no existe ninguna clave.
+#
+# QUÉ CONSERVA DEL DISEÑO ORIGINAL (paridad con vector.yaml):
+#   · El endpoint: POST /v1/batch en 127.0.0.1:8080 (Caddy adelante).
+#   · raw = la request tal cual llegó; bronze = un registro por evento con
+#     las MISMAS 17 columnas y timestamps en micros; mismo filtro de bots;
+#     misma corrección de reloj contra sentAt.
+#   · Durabilidad: buffer sqlite en disco — el 200 al SDK sale recién cuando
+#     el evento quedó PERSISTIDO; un reinicio no pierde nada (mejor que el
+#     original: el http_server de Vector ni soportaba acknowledgements).
+#
+# QUÉ CAMBIA, Y POR QUÉ:
+#   · raw pasa de .log.zst a .log.gz — el procesador de compresión no trae
+#     zstd. DuckDB y BigQuery leen gzip igual; los .zst viejos siguen
+#     legibles (DuckDB detecta por extensión).
+#   · La carpeta dt= se decide por la hora del FLUSH (UTC), no por el
+#     timestamp del evento: desaparecen los flushes tardíos a la carpeta de
+#     ayer (la "gracia" post-medianoche queda sin trabajo, no rota).
+#   · Se retiran los extras de observabilidad de Vector: el sink de errores
+#     (raw ya guarda TODO lo que entra, incluso lo malformado — es la fuente
+#     de reproceso), los taps de consola y las métricas a CloudWatch.
+#
+# El esquema del parquet vive ACÁ (parquet_encode.schema), ya no en un
+# archivo aparte. bronze_v1.schema queda como documentación del contrato.
+
+# El servidor de administración que Connect abre por defecto (:4195) no se
+# usa: cerrado.
+http:
+  enabled: false
+
+input:
+  http_server:
+    address: 127.0.0.1:8080
+    path: /v1/batch
+    allowed_verbs: [ POST ]
+  processors:
+    # El sello de recepción se toma ACÁ, antes del buffer: si el proceso se
+    # reinicia con cola pendiente, cada evento conserva la hora en que llegó
+    # de verdad, no la hora en que se procesó.
+    - mapping: |
+        meta ts_recv = now().ts_format("2006-01-02T15:04:05.999999999Z07:00", "UTC")
+
+# La garantía de no perder datos: el input recién confirma (y el 200 sale)
+# cuando el mensaje quedó escrito en esta base. Sobrevive reinicios; al
+# volver, se retoma desde el más viejo sin entregar.
+buffer:
+  sqlite:
+    path: /var/lib/redpanda-connect/buffer.sqlite
+
+output:
+  # fan_out: cada request va a las DOS salidas; el buffer da por entregado
+  # recién cuando ambas confirmaron.
+  broker:
+    pattern: fan_out
+    outputs:
+      # ── raw: el POST tal cual llegó ─────────────────────────────
+      # Mismo shape que producía Vector: el archivo es UN array JSON de
+      # objetos {message, path, source_type, timestamp} — el viewer de la
+      # app y DuckDB lo leen sin cambios.
+      - gcp_cloud_storage:
+          bucket: sessions-ingest-lake
+          path: 'raw/v=1/dt=${! now().ts_format("2006-01-02", "UTC") }/${! now().ts_unix() }-${! uuid_v4() }.log.gz'
+          content_type: application/json
+          timeout: 120s
+          batching:
+            period: 600s
+            byte_size: 67108864
+            processors:
+              - mapping: |
+                  root = {
+                    "message": content().string(),
+                    "path": meta("http_server_request_path").or("/v1/batch"),
+                    "source_type": "http_server",
+                    "timestamp": meta("ts_recv").or(now().ts_format("2006-01-02T15:04:05.999999999Z07:00", "UTC"))
+                  }
+              - archive:
+                  format: json_array
+              - compress:
+                  algorithm: gzip
+
+      # ── bronze: un registro por evento, parquet, sin bots ───────
+      - gcp_cloud_storage:
+          bucket: sessions-ingest-lake
+          path: 'bronze/v=1/dt=${! now().ts_format("2006-01-02", "UTC") }/${! now().ts_unix() }-${! uuid_v4() }.parquet'
+          content_type: application/octet-stream
+          timeout: 120s
+          batching:
+            period: 600s
+            byte_size: 67108864
+            processors:
+              # 1) Abrir el sobre: una request → N eventos. Cada evento se
+              #    lleva pegado el sentAt del sobre y el sello de recepción.
+              #    Un body malformado se descarta de bronze SIN drama: su
+              #    request completa ya está en raw, que es de donde se
+              #    reprocesa.
+              - mapping: |
+                  let parsed = content().parse_json().catch(null)
+                  root = if $parsed == null || $parsed.batch.type() != "array" {
+                    deleted()
+                  } else {
+                    $parsed.batch.map_each(ev -> ev.assign({
+                      "_envelope": {
+                        "sent_at": $parsed.sentAt.or(null),
+                        "received_at": meta("ts_recv")
+                      }
+                    }).catch(deleted()))
+                  }
+              - unarchive:
+                  format: json_array
+
+              # 2) El registro de 17 columnas — el MISMO contrato que la
+              #    config de Vector, pieza por pieza:
+              #    · corrección de reloj: recv - (sent - orig), en millis;
+              #    · ids con "" → null (el SDK manda userId:"" para anónimos);
+              #    · context/properties/traits/integrations → JSON string;
+              #    · bots afuera por user agent (regex textual del original).
+              - mapping: |
+                  let layout = "2006-01-02T15:04:05.999999999Z07:00"
+
+                  let recv_str = this._envelope.received_at
+                  let recv_ms = $recv_str.ts_parse($layout).ts_unix_milli().catch(now().ts_unix_milli())
+
+                  let sent_str = this._envelope.sent_at
+                  let sent_ms = $sent_str.ts_parse($layout).ts_unix_milli().catch($recv_ms)
+
+                  let orig_str = this.originalTimestamp
+                  let orig_ms = $orig_str.ts_parse($layout).ts_unix_milli().catch($sent_ms)
+
+                  let corrected_ms = $recv_ms - ($sent_ms - $orig_ms)
+
+                  let ua = this.context.userAgent.or("").string().lowercase()
+
+                  root = if $ua != "" && $ua.re_match("(bot|crawl|spider|scraper|slurp|headless|phantomjs|puppeteer|playwright|selenium|scrapy|python-requests|okhttp|java/|go-http-client|libwww|curl/|wget|lighthouse|pagespeed|gtmetrix|pingdom|uptimerobot|monitoring|facebookexternalhit|whatsapp|telegram|discord|slack|embedly|preview|ahrefs|semrush|mj12|dotbot|petal|yandex|baiduspider|bingbot|googlebot|applebot|duckduckbot|bytespider|gptbot|claudebot|ccbot|perplexity|meta-externalagent|amazonbot|imagesift)") {
+                    deleted()
+                  } else {
+                    {
+                      "message_id": this.messageId.string().catch(null),
+                      "anonymous_id": if this.anonymousId.or("") == "" { null } else { this.anonymousId.string().catch(null) },
+                      "user_id": if this.userId.or("") == "" { null } else { this.userId.string().catch(null) },
+                      "type": this.type.string().catch(null),
+                      "event": this.event.string().catch(null),
+                      "channel": this.channel.string().catch(null),
+                      "schema_version": "1",
+                      "original_timestamp": if $orig_str.or("") == "" { null } else { $orig_str.string().catch(null) },
+                      "sent_at": if $sent_str.or("") == "" { null } else { $sent_str.string().catch(null) },
+                      "received_at": $recv_ms * 1000,
+                      "timestamp": $corrected_ms * 1000,
+                      "context": if this.exists("context") { this.context.string().catch(null) } else { null },
+                      "properties": if this.exists("properties") { this.properties.string().catch(null) } else { null },
+                      "traits": if this.exists("traits") { this.traits.string().catch(null) } else { null },
+                      "integrations": if this.exists("integrations") { this.integrations.string().catch(null) } else { null },
+                      "group_id": if this.groupId.or("") == "" { null } else { this.groupId.string().catch(null) },
+                      "previous_id": if this.previousId.or("") == "" { null } else { this.previousId.string().catch(null) }
+                    }
+                  }
+
+              # 3) El parquet. MICROSECOND es obligatorio: el default (nanos)
+              #    no lo leen DuckDB ni Athena. received_at/timestamp entran
+              #    como enteros en MICROS — por eso el *1000 de arriba.
+              - parquet_encode:
+                  default_compression: zstd
+                  default_timestamp_unit: MICROSECOND
+                  schema:
+                    - { name: message_id, type: UTF8, optional: true }
+                    - { name: anonymous_id, type: UTF8, optional: true }
+                    - { name: user_id, type: UTF8, optional: true }
+                    - { name: type, type: UTF8, optional: true }
+                    - { name: event, type: UTF8, optional: true }
+                    - { name: channel, type: UTF8, optional: true }
+                    - { name: schema_version, type: UTF8, optional: true }
+                    - { name: original_timestamp, type: UTF8, optional: true }
+                    - { name: sent_at, type: UTF8, optional: true }
+                    - { name: received_at, type: TIMESTAMP, optional: true }
+                    - { name: timestamp, type: TIMESTAMP, optional: true }
+                    - { name: context, type: UTF8, optional: true }
+                    - { name: properties, type: UTF8, optional: true }
+                    - { name: traits, type: UTF8, optional: true }
+                    - { name: integrations, type: UTF8, optional: true }
+                    - { name: group_id, type: UTF8, optional: true }
+                    - { name: previous_id, type: UTF8, optional: true }

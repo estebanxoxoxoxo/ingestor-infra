@@ -5,7 +5,8 @@ esto, nunca al revés.
 
 ```
 infra/
-  vector/            config del ingestor (VM): vector.yaml + bronze_v1.schema
+  redpanda-connect/  el ingestor (VM): connect.yaml + unidad de systemd
+  caddy/             el frente TLS (VM): Caddyfile
   index-function/    la función que mantiene el índice: código fuente
   scripts/           despliegues idempotentes
 ```
@@ -47,13 +48,16 @@ gcloud functions logs read index-writer --region=us-east1 --limit=20
 
 ## El ingestor
 
-`vector/` tiene la config y el esquema, con su propio README: cómo se publica
-al bucket y cómo la VM los baja y recarga sin cortar el listener.
+`redpanda-connect/` tiene la config, la unidad de systemd y el porqué del
+reemplazo de Vector (2026-08-12), con su README. Se despliega con
+`npm run infra:connect`; el frente TLS con `npm run infra:caddy`.
 
 ## Retirado
 
-La versión AWS de esto (S3 → Lambda → Firestore, con la credencial de Firebase
-guardada del lado de AWS) **nunca se desplegó** y se borró del repo: la
-plataforma se mudó a GCP antes de llegar a usarla. El equivalente es
-`deploy-lake-index.sh`, que además no necesita credenciales cruzadas
-entre nubes.
+- **Vector** (2026-08-12): no sabe escribir parquet hacia GCS, y la vía de la
+  API compatible con S3 choca con el checksum de los SDK modernos de AWS. El
+  detalle verificado está en `redpanda-connect/README.md`; su config vive en
+  el historial de git.
+- **La Lambda de AWS** (S3 → Lambda → Firestore, con la credencial de
+  Firebase guardada del lado de AWS): nunca se desplegó y se borró del repo.
+  El equivalente es `deploy-lake-index.sh`, sin credenciales cruzadas.
