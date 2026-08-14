@@ -1,0 +1,13 @@
+{
+  "name": "regenerate-tree",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Bucket -> Firestore: regenera el árbol del índice escribiendo sólo el diff",
+  "main": "index.mjs",
+  "dependencies": {
+    "@google-cloud/firestore": "^7.11.0",
+    "@google-cloud/functions-framework": "^3.4.0",
+    "@google-cloud/storage": "^7.14.0"
+  }
+}
