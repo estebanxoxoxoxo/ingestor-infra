@@ -35,10 +35,10 @@
 #
 # USO
 #
-#   npm run infra:index
+#   npm run deploy:index
 #
 #   Todo se puede sobreescribir por entorno, en la misma línea:
-#   BUCKET=other REGION=us-central1 npm run infra:index
+#   BUCKET=other REGION=us-central1 npm run deploy:index
 #
 # REQUISITOS PREVIOS
 #

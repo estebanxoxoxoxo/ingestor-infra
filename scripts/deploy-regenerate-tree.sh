@@ -34,11 +34,11 @@
 #
 # USO
 #
-#   npm run infra:regenerate
+#   npm run deploy:regenerate
 #
 # REQUISITOS PREVIOS
 #
-#   · El índice ya desplegado (npm run infra:index): de ahí sale la SA.
+#   · El índice ya desplegado (npm run deploy:index): de ahí sale la SA.
 #   · APIs habilitadas: run, cloudfunctions, eventarc, firestore.
 #
 set -euo pipefail
@@ -66,8 +66,9 @@ FUNCTION="${FUNCTION:-regenerate-tree}"
 SA_NAME="${SA_NAME:-index-writer}"
 SA_EMAIL="${SA_NAME}@${PROJECT}.iam.gserviceaccount.com"
 FIRESTORE_PROJECT="${FIRESTORE_PROJECT:-$PROJECT}"
-# La colección de órdenes y el doc de settings: los mismos nombres que usa
-# la app (src/shared/config.ts).
+# La colección de órdenes. El nombre es contrato: está declarado en
+# CONTRATO.md (§5) y los lectores tienen su copia. Cambiarlo acá obliga a
+# cambiarlo allá — no hay compilador que avise.
 ORDERS="${ORDERS:-regenerateTree}"
 
 echo "Proyecto:  $PROJECT"

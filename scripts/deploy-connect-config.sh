@@ -16,8 +16,8 @@
 #
 # USO
 #
-#   npm run infra:connect
-#   VM=other-vm ZONE=us-central1-a npm run infra:connect
+#   npm run deploy:connect
+#   VM=other-vm ZONE=us-central1-a npm run deploy:connect
 #
 # REQUISITO PREVIO: el binario instalado en la VM y el usuario de servicio
 # creado (pasos del plan de migración; el binario se busca en el PATH).

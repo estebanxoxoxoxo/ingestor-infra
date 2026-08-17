@@ -9,8 +9,8 @@
 #
 # USO
 #
-#   npm run infra:caddy
-#   VM=other-vm ZONE=us-central1-a npm run infra:caddy
+#   npm run deploy:caddy
+#   VM=other-vm ZONE=us-central1-a npm run deploy:caddy
 #
 # REQUISITO PREVIO
 #

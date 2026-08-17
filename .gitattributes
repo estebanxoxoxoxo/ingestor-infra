@@ -1,0 +1,14 @@
+# TODO lo de este repo termina corriendo en Linux: los scripts en bash, la
+# config y la unidad de systemd dentro de la VM, el fuente de las funciones en
+# Cloud Run. Con core.autocrlf=true (el default de Git en Windows) un clon
+# nuevo los dejaría en CRLF y romperían allá — bash con `$'\r': command not
+# found`, systemd con la unidad ilegible.
+#
+# Por eso el final de línea se fija acá y no depende de la máquina que clone.
+*           text=auto eol=lf
+*.sh        text eol=lf
+*.yaml      text eol=lf
+*.service   text eol=lf
+*.mjs       text eol=lf
+*.schema    text eol=lf
+Caddyfile   text eol=lf

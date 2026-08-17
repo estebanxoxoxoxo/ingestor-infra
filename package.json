@@ -1,0 +1,12 @@
+{
+  "name": "ingestor-infra",
+  "version": "0.1.0",
+  "private": true,
+  "description": "La plataforma del pipeline: el ingestor que escribe el lake (VM) y el índice del lake en Firestore (serverless). Fuente de verdad versionada — la nube es una copia de esto, nunca al revés",
+  "scripts": {
+    "deploy:index": "bash scripts/deploy-lake-index.sh",
+    "deploy:regenerate": "bash scripts/deploy-regenerate-tree.sh",
+    "deploy:connect": "bash scripts/deploy-connect-config.sh",
+    "deploy:caddy": "bash scripts/deploy-caddy-config.sh"
+  }
+}

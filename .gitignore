@@ -1,0 +1,9 @@
+# Las funciones declaran sus dependencias pero acá nunca se instalan: el
+# `gcloud functions deploy` sube el fuente y Google resuelve el árbol allá.
+node_modules/
+package-lock.json
+
+# Nada de secretos en el repo: los scripts se autentican con `gcloud auth` y
+# las funciones con su service account.
+.env
+*.json.key
