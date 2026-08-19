@@ -9,8 +9,8 @@
 #
 # USO
 #
-#   npm run deploy:caddy
-#   VM=other-vm ZONE=us-central1-a npm run deploy:caddy
+#   pnpm run deploy:caddy
+#   VM=other-vm ZONE=us-central1-a pnpm run deploy:caddy
 #
 # REQUISITO PREVIO
 #
@@ -25,7 +25,7 @@ if [ -z "$PROJECT" ] || [ "$PROJECT" = "(unset)" ]; then
 fi
 
 BUCKET="${BUCKET:-${PROJECT}-lake}"
-VM="${VM:-ingestor-vm}"
+VM="${VM:-${PROJECT}-vm}"
 ZONE="${ZONE:-us-east1-c}"
 CONFIG_DIR="$(dirname "$0")/../caddy"
 

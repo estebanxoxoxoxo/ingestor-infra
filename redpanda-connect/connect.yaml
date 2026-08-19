@@ -64,7 +64,7 @@ output:
       # objetos {message, path, source_type, timestamp} — el viewer de la
       # app y DuckDB lo leen sin cambios.
       - gcp_cloud_storage:
-          bucket: sessions-ingest-lake
+          bucket: prueba-pasos-lake
           path: 'raw/v=1/dt=${! now().ts_format("2006-01-02", "UTC") }/${! now().ts_unix() }-${! uuid_v4() }.log.gz'
           content_type: application/json
           timeout: 120s
@@ -86,7 +86,7 @@ output:
 
       # ── bronze: un registro por evento, parquet, sin bots ───────
       - gcp_cloud_storage:
-          bucket: sessions-ingest-lake
+          bucket: prueba-pasos-lake
           path: 'bronze/v=1/dt=${! now().ts_format("2006-01-02", "UTC") }/${! now().ts_unix() }-${! uuid_v4() }.parquet'
           content_type: application/octet-stream
           timeout: 120s

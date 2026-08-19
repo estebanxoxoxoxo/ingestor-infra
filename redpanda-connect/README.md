@@ -55,7 +55,7 @@ gcloud compute ssh [VM] --zone=[ZONE] --command="curl -1sLf 'https://linux.pkg.r
 ## Despliegue de la config
 
 ```bash
-npm run deploy:connect
+pnpm run deploy:connect
 ```
 
 Sube `connect.yaml` + unidad al bucket, la VM baja con su identidad, corre

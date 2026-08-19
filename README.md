@@ -1,3 +1,6 @@
+connect.yaml tiene hardcodeado el nombre del bucket. Modificarlo segun el caso
+
+
 # ingestor-infra
 
 La plataforma del pipeline: lo que corre en la nube, versionado acá. **La nube
@@ -44,7 +47,7 @@ capas: `raw/` en `.log.gz` y `bronze/` en `.parquet` de 17 columnas. Reemplazó
 a Vector el 2026-08-12; el porqué verificado está en su README.
 
 ```bash
-npm run deploy:connect
+pnpm run deploy:connect
 ```
 
 Sube la config al bucket, la VM la baja con su identidad, corre
@@ -57,7 +60,7 @@ Termina TLS con certificado automático de Let's Encrypt y proxea al 8080. Es
 lo único expuesto: Connect escucha sólo en loopback.
 
 ```bash
-npm run deploy:caddy
+pnpm run deploy:caddy
 ```
 
 Baja a `/tmp`, valida y recién ahí pisa: un Caddyfile roto no llega a tocar el
@@ -71,7 +74,7 @@ que está sirviendo tráfico.
 segundos, sin que ninguna app esté abierta.
 
 ```bash
-npm run deploy:index
+pnpm run deploy:index
 ```
 
 Un solo comando hace todo: la service account (`index-writer`, con **sólo**
@@ -94,7 +97,7 @@ documento es el pedido y el estado, así que quien lo pidió ve el progreso con
 una suscripción y puede cerrarse mientras tanto.
 
 ```bash
-npm run deploy:regenerate
+pnpm run deploy:regenerate
 ```
 
 Requiere el índice ya desplegado: reusa su service account, con un permiso más

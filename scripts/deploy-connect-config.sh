@@ -16,8 +16,8 @@
 #
 # USO
 #
-#   npm run deploy:connect
-#   VM=other-vm ZONE=us-central1-a npm run deploy:connect
+#   pnpm run deploy:connect
+#   VM=other-vm ZONE=us-central1-a pnpm run deploy:connect
 #
 # REQUISITO PREVIO: el binario instalado en la VM y el usuario de servicio
 # creado (pasos del plan de migración; el binario se busca en el PATH).
@@ -31,7 +31,7 @@ if [ -z "$PROJECT" ] || [ "$PROJECT" = "(unset)" ]; then
 fi
 
 BUCKET="${BUCKET:-${PROJECT}-lake}"
-VM="${VM:-ingestor-vm}"
+VM="${VM:-${PROJECT}-vm}"
 ZONE="${ZONE:-us-east1-c}"
 CONFIG_DIR="$(dirname "$0")/../redpanda-connect"
 

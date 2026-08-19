@@ -34,11 +34,11 @@
 #
 # USO
 #
-#   npm run deploy:regenerate
+#   pnpm run deploy:regenerate
 #
 # REQUISITOS PREVIOS
 #
-#   · El índice ya desplegado (npm run deploy:index): de ahí sale la SA.
+#   · El índice ya desplegado (pnpm run deploy:index): de ahí sale la SA.
 #   · APIs habilitadas: run, cloudfunctions, eventarc, firestore.
 #
 set -euo pipefail
