@@ -6,9 +6,6 @@ connect.yaml tiene hardcodeado el nombre del bucket. Modificarlo segun el caso
 La plataforma del pipeline: lo que corre en la nube, versionado acá. **La nube
 es una copia de esto, nunca al revés.**
 
-Salió de `ingestor-monitor/infra/` el 2026-08-17, con su historia. Vive
-separado porque nada de esto *es* el monitor: el ingestor y el índice siguen
-corriendo con la app desinstalada, y el monitor es apenas uno de sus lectores.
 
 ```
 redpanda-connect/         el ingestor (VM): connect.yaml + unidad de systemd
